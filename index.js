@@ -3,12 +3,31 @@ const fs = require('fs');
 const sha1 = require('js-sha1');
 const FormData = require('form-data');
 
+require('dotenv/config');
+
 const request = async () => {
   try {
-    return await axios.get('https://api.codenation.dev/v1/challenge/dev-ps/generate-data?token=88dc014aff9c81caa0aa8aa5fba846b897bca63f')
+    return await axios.get(`https://api.codenation.dev/v1/challenge/dev-ps/generate-data?token=${process.env.TOKEN}`)
   } catch (error) {
     console.error(error)
   }
+}
+
+const send = async () => {
+  const form = new FormData();
+  const file = fs.createReadStream('./answer_repository/answer.json');
+
+  form.append("answer", file);
+
+  return await axios.post(`https://api.codenation.dev/v1/challenge/dev-ps/submit-solution?token=${process.env.TOKEN}`,
+    form,
+    {
+      headers: {
+        ...form.getHeaders()
+      }
+    },
+    err => console.error(err)
+  );
 }
 
 const decrypt = async (cifrado, deslocamento) => {
@@ -28,36 +47,18 @@ const decrypt = async (cifrado, deslocamento) => {
   }
   return string;
 }
-
-const dispatch = async () => {
-  const bodyFormData = new FormData();
-
-  try {
-    bodyFormData.append('answer', './answer_repository/answer.json');
-  } catch (response) {
-    console.log(response)
-  }
-
-  axios.post('https://api.codenation.dev/v1/challenge/dev-ps/submit-solution?token=88dc014aff9c81caa0aa8aa5fba846b897bca63f', bodyFormData, {
-    headers: form.getHeaders(),
-  }).then(result => {
-    // Handle result…
-    console.log(result.data);
-  });
-
-}
-
 const index = async () => {
 
-  const response = await request();
+  const responseRequest = await request();
 
-  if (response.data) {
+  if (responseRequest.data) {
 
-    response.data.decifrado = await decrypt(response.data.cifrado, response.data.numero_casas);
-    response.data.resumo_criptografico = sha1(response.data.decifrado);
-    fs.writeFileSync('./answer_repository/answer.json', JSON.stringify(response.data));
+    responseRequest.data.decifrado = await decrypt(responseRequest.data.cifrado, responseRequest.data.numero_casas);
+    responseRequest.data.resumo_criptografico = sha1(responseRequest.data.decifrado);
+    fs.writeFileSync('./answer_repository/answer.json', JSON.stringify(responseRequest.data));
 
-    await dispatch();
+     const responseSend =  await send();
+     console.log(JSON.stringify(responseSend.data));
   };
 }
 
